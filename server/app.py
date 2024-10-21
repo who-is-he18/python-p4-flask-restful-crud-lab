@@ -16,9 +16,7 @@ db.init_app(app)
 
 api = Api(app)
 
-
 class Plants(Resource):
-
     def get(self):
         plants = [plant.to_dict() for plant in Plant.query.all()]
         return make_response(jsonify(plants), 200)
@@ -44,11 +42,51 @@ api.add_resource(Plants, '/plants')
 class PlantByID(Resource):
 
     def get(self, id):
-        plant = Plant.query.filter_by(id=id).first().to_dict()
-        return make_response(jsonify(plant), 200)
+        plant = Plant.query.filter_by(id=id).first()
+        if plant:
+            return make_response(jsonify(plant.to_dict()), 200)
+        return make_response({'error': 'Plant not found'}, 404)
+
+    def patch(self, id):
+        plant = Plant.query.filter_by(id=id).first()
+        if plant:
+            data = request.get_json()
+
+            # Only update the fields present in the request data
+            if 'is_in_stock' in data:
+                plant.is_in_stock = data['is_in_stock']
+
+            db.session.commit()  # Save changes to the database
+            return make_response(jsonify(plant.to_dict()), 200)
+        return make_response({'error': 'Plant not found'}, 404)
+
+    def put(self, id):
+        plant = Plant.query.filter_by(id=id).first()
+        if plant:
+            data = request.get_json()
+
+            # Update all fields with provided data or leave them unchanged
+            plant.name = data.get('name', plant.name)
+            plant.image = data.get('image', plant.image)
+            plant.price = data.get('price', plant.price)
+            if 'is_in_stock' in data:
+                plant.is_in_stock = data['is_in_stock']
+
+            db.session.commit()  # Save changes to the database
+            return make_response(jsonify(plant.to_dict()), 200)
+        return make_response({'error': 'Plant not found'}, 404)
+
+    def delete(self, id):
+        plant = Plant.query.filter_by(id=id).first()
+        if plant:
+            db.session.delete(plant)
+            db.session.commit()  # Delete plant from the database
+            return make_response({}, 204)  # No content after deletion
+        return make_response({'error': 'Plant not found'}, 404)
 
 
-api.add_resource(PlantByID, '/plants/<int:id>')
+# Add the DELETE method for /plants/<int:id>
+api.add_resource(PlantByID, '/plants/<int:id>', methods=['GET', 'PATCH', 'PUT', 'DELETE'])
 
 
 if __name__ == '__main__':
